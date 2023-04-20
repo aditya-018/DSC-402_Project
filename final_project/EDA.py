@@ -177,7 +177,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-delta_path = "dbfs:/FileStore/tables/G06/historic_bike_trip_g06/"
+delta_path = "dbfs:/FileStore/tables/G06/bike_trip_history/"
 
 df = spark.read.format("delta").load(delta_path)
 
@@ -189,7 +189,7 @@ df.groupBy('rideable_type').count().show()
 print('Distinct end station names', df.select('end_station_name').distinct().count())
 df.groupBy('end_station_name').count().show()
 print('Distinct membership types', df.select('member_casual').distinct().count())
-df.groupBy('member_casual').count().show()
+df.groupBy('member_casual').count().show().asc()
 
 
 # COMMAND ----------
@@ -374,4 +374,8 @@ plt.title("Weekly Trips Over Time (Excluding Weekends and Holidays)")
 plt.xlabel("Week of Year")
 plt.ylabel("Trips")
 plt.show()
+
+
+# COMMAND ----------
+
 
