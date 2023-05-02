@@ -8,6 +8,10 @@ display(dbutils.fs.ls("dbfs:/FileStore/tables/G06/"))
 
 # COMMAND ----------
 
+# dbutils.fs.rm("dbfs:/FileStore/tables/G06/bronze/history_bike_trips/", True)
+
+# COMMAND ----------
+
 # Load the data file into a DataFrame
 df = spark.read.format("csv").option("header", True).load(BIKE_TRIP_DATA_PATH)
 
