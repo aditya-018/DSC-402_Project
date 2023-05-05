@@ -41,12 +41,12 @@ GROUPS_STATION_ASSIGNMENT = {'G01':'W 21 St & 6 Ave',
 # COMMAND ----------
 
 # DBTITLE 1,Define Project Global Variables
-NYC_WEATHER_FILE_PATH = 'dbfs:/FileStore/tables/raw/weather/'
-BIKE_TRIP_DATA_PATH = 'dbfs:/FileStore/tables/raw/bike_trips/'
+NYC_WEATHER_FILE_PATH = 'dbfs:/FileStore/tables/G06/raw/weather/'
+BIKE_TRIP_DATA_PATH = 'dbfs:/FileStore/tables/G06/raw/bike_trips/'
 
-BRONZE_STATION_INFO_PATH = 'dbfs:/FileStore/tables/bronze_station_info.delta'
-BRONZE_STATION_STATUS_PATH = 'dbfs:/FileStore/tables/bronze_station_status.delta'
-BRONZE_NYC_WEATHER_PATH = 'dbfs:/FileStore/tables/bronze_nyc_weather.delta'
+BRONZE_STATION_INFO_PATH = 'dbfs:/FileStore/tables/G06/bronze_station_info.delta'
+BRONZE_STATION_STATUS_PATH = 'dbfs:/FileStore/tables/G06/bronze_station_status.delta'
+BRONZE_NYC_WEATHER_PATH = 'dbfs:/FileStore/tables/G06/bronze_nyc_weather.delta'
 
 # Some configuration of the cluster
 spark.conf.set("spark.sql.shuffle.partitions", "40")  # Configure the size of shuffles the same as core count on your cluster
@@ -54,11 +54,12 @@ spark.conf.set("spark.sql.adaptive.enabled", "true")  # Spark 3.0 AQE - coalesci
 
 
 USER_NAME = json.loads(dbutils.notebook.entry_point.getDbutils().notebook().getContext().toJson())['tags']['user']
-GROUP_NAME = ""
+GROUP_NAME = "G06"
 
 for i in range(len(GROUPS)):
     if USER_NAME in GROUPS[i]:
         GROUP_NAME = GROUPS[i][0]
+
 
 if GROUP_NAME == "":
     dbutils.notebook.exit(f"{USER_NAME} is  not assigned to a final project group")
@@ -73,9 +74,18 @@ GROUP_DB_NAME = f"{GROUP_NAME}_db"
 GROUP_DATA_PATH = f"dbfs:/FileStore/tables/{GROUP_NAME}/"
 
 
+
 # Setup the hive meta store if it does not exist and select database as the focus of future sql commands in this notebook
 spark.sql(f"CREATE DATABASE IF NOT EXISTS {GROUP_DB_NAME}")
 spark.sql(f"USE {GROUP_DB_NAME}")
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+
+
 
 # COMMAND ----------
 
@@ -97,3 +107,7 @@ displayHTML(f"""
 <tr><td>GROUP_DB_NAME</td><td>{GROUP_DB_NAME}</td><td>Group Database to store any managed tables (pre-defined for you)</td></tr>
 </table>
 """)
+
+# COMMAND ----------
+
+
