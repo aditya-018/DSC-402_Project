@@ -78,6 +78,60 @@ hourly_net_bike_changes = hourly_net_bike_change.withColumn(
     )
 )
 display(hourly_net_bike_changes)
+#hourly_net_bike_changes.sort(h
+
+# COMMAND ----------
+
+hourly_net_bike_changes.tail(500)
+
+# COMMAND ----------
+
+from pyspark.sql.functions import *
+from pyspark.sql import functions as F
+sample=spark.read.format("delta").load("dbfs:/FileStore/tables/bronze_station_status.delta")
+sample=sample.filter(sample["station_id"]=='66db6387-0aca-11e7-82f6-3863bb44ef7c')
+sample = sample.withColumn("datetime", to_timestamp(from_unixtime(sample["last_reported"])))
+sample = sample.withColumn("date", sample["datetime"].cast("date"))
+sample = sample.withColumn("time", split(sample["datetime"].cast("string"), " ")[1])
+sample=sample.drop('datetime')
+sample=sample.select(col("num_ebikes_available"), col("num_docks_available"), col("num_docks_disabled"),col("num_bikes_disabled"),col("num_bikes_available"),col("date"),col("time"))
+display(sample)
+sample = sample.withColumn("rounded_time", date_trunc("hour", "time")) \
+       .withColumn("hour", lpad(hour("rounded_time").cast("string"), 2, "0")).drop("time")\
+       .withColumn("time", concat("hour", lit(":00:00"))) \
+       .drop("rounded_time", "hour")
+num_cols = [c for c in sample.columns if c not in ['date', 'time']]
+
+# Compute the hourly average of each numeric column
+data = sample.groupBy('date','time').agg(*[round(avg(col(c))).alias(c) for c in num_cols])
+#data = data.filter(col('date') >= '2023-04-01')
+data = data.toPandas()
+# Show the result
+display(data)
+
+# COMMAND ----------
+
+df=spark.read.format("delta").load("dbfs:/FileStore/tables/bronze_nyc_weather.delta")
+df = df.withColumn("datetime", to_timestamp(from_unixtime(df["dt"])))
+df = df.withColumn("date", df["datetime"].cast("date"))
+df = df.withColumn("time", split(df["datetime"].cast("string"), " ")[1])
+df=df.drop("datetime")
+#display(df)
+df = df.filter(col('date') >= '2023-04-01')
+#df = df.filter(col('date') <= '2023-05-05')
+display(df)
+
+# COMMAND ----------
+
+df=df.toPandas()
+#data=data.toPandas()
+merged_df = pd.merge(df, data, how='left', on=['date', 'time'])
+spark_df = spark.createDataFrame(merged_df)
+display(spark_df)
+
+# COMMAND ----------
+
+merged_df
 
 # COMMAND ----------
 
