@@ -11,6 +11,16 @@ sample = sample.withColumn("datetime", to_timestamp(from_unixtime(sample["last_r
 sample = sample.withColumn("date", sample["datetime"].cast("date"))
 sample = sample.withColumn("time", split(sample["datetime"].cast("string"), " ")[1])
 
+display(sample.filter(sample["date"]=='2023-04-19'))
+
+# COMMAND ----------
+
+sam=spark.read.format("csv").load("dbfs:/FileStore/tables/raw/weather/")
+display(sam)
+
+# COMMAND ----------
+
+display(dbutils.fs.ls("dbfs:/FileStore/tables/G13/bronze"))
 
 # COMMAND ----------
 
@@ -42,7 +52,7 @@ display(weather.limit(5))
 
 from pyspark.sql.functions import year, month, count
 
-delta_path = "dbfs:/FileStore/tables/G06/historic_bike_trip_g06/"
+delta_path = "dbfs:/FileStore/tables/G06/silver/nyc_bike_trip_history_selected"
 
 df = spark.read.format("delta").load(delta_path)
 # display(df.orderBy("started_at").tail(5))
@@ -124,7 +134,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-delta_path = "dbfs:/FileStore/tables/G06/historic_bike_trip_g06/"
+delta_path = "dbfs:/FileStore/tables/G06/silver/nyc_bike_trip_history_selected"
 
 df = spark.read.format("delta").load(delta_path)
 
@@ -263,7 +273,7 @@ plt.show()
 # Q2 What are the daily trip trends for your given station?
 from pyspark.sql.functions import date_format
 
-delta_path = "dbfs:/FileStore/tables/G06/historic_bike_trip_g06/"
+delta_path = "dbfs:/FileStore/tables/G06/silver/nyc_bike_trip_history_selected"
 
 df_q2 = spark.read.format("delta").load(delta_path)
 df_q2 = df_q2.withColumn("start_date", date_format("started_at", "yyyy-MM-dd").cast("date"))
@@ -302,7 +312,7 @@ fig.show()
 import pandas as pd
 from pyspark.sql.functions import to_date
 start_date = "2021-11-01"
-end_date = "2023-02-28"
+end_date = "2023-05-06"
 date_range = pd.date_range(start=start_date, end=end_date, freq='D').strftime('%Y-%m-%d').tolist()
 df = df.withColumn("start_date", date_format("started_at", "yyyy-MM-dd").cast("date"))
 start_date_list = [str(row.start_date) for row in df.select("start_date").collect()]
@@ -336,7 +346,7 @@ for year in range(2021, 2024):
                 # Skip invalid dates
                 pass
 
-delta_path = "dbfs:/FileStore/tables/G06/historic_bike_trip_g06/"
+delta_path = "dbfs:/FileStore/tables/G06/silver/nyc_bike_trip_history_selected"
 # holidays = ["2021-11-25", "2021-12-25", "2022-01-01", "2022-01-17", "2022-02-21"]
 # holidays = [datetime.datetime.strptime(h, '%Y-%m-%d').date() for h in holidays]
 # print(holidays)
@@ -389,18 +399,8 @@ print("Percentage change in the average number of trips per day due to holidays:
 
 from pyspark.sql.functions import split
 from pyspark.sql.functions import to_timestamp, from_unixtime,desc
-delta_table = "dbfs:/FileStore/tables/G06/bronze/nyc_weather_history/"
+delta_table = "dbfs:/FileStore/tables/G06/silver/nyc_bike_trip_history_selected"
 weather_df_with_datetime = spark.read.format("delta").load(delta_table)
-
-# weather_df_with_datetime = weather_df.withColumn("datetime", to_timestamp(from_unixtime(weather_df["dt"])))
-
-# weather_df_with_datetime = weather_df_with_datetime.withColumn("date", weather_df_with_datetime["datetime"].cast("date"))
-# weather_df_with_datetime = weather_df_with_datetime.withColumn("time", split(weather_df_with_datetime["datetime"].cast("string"), " ")[1])
-# display(weather_df_with_datetime.limit(5))
-# from pyspark.sql.functions import col
-
-# sd = weather_df_with_datetime.filter(col('date') == '2021-11-15')
-# display(sd)
 weather_df_with_datetime=weather_df_with_datetime.toPandas()
 # check for duplicates in two columns
 duplicates = weather_df_with_datetime[weather_df_with_datetime[['date', 'time']].duplicated()]
@@ -416,17 +416,12 @@ weather_df_with_datetime = weather_df_with_datetime.drop_duplicates(subset=['dat
 from pyspark.sql.functions import year, month, count,hour,round,date_format,to_timestamp,when,lit,concat,ceil,col
 import pandas as pd
 
-delta_path = "dbfs:/FileStore/tables/G06/historic_bike_trip_g06/"
+delta_path = "dbfs:/FileStore/tables/G06/bronze/nyc_bike_trip_history"
 
 rides_df = spark.read.format("delta").load(delta_path)
-display(rides_df.count())
+display(rides_df.limit(5))
 rides_df=rides_df.toPandas()
-# rides_df['started_at'] = pd.to_datetime(rides_df['started_at'])
 
-# # extract the date and hour from the 'started_at' column using .dt accessor
-# rides_df['date'] = rides_df['started_at'].dt.date
-# # rides_df['time'] = rides_df['started_at'].dt.hour.astype(str).str.zfill(2) + ':00:00'
-# rides_df['time'] = rides_df['started_at'].dt.round('H').apply(lambda x: x.strftime('%H:%M:%S'))
 
 # COMMAND ----------
 
@@ -456,7 +451,7 @@ display(sf)
 
 from pyspark.sql.functions import count
 
-rides_by_weather = spark_df.groupBy('main').agg(count('ride_id').alias('ride_count'))
+rides_by_weather = spark_df.groupBy('date','main').agg(count('ride_id').alias('ride_count'))
 
 display(rides_by_weather)
 
@@ -493,6 +488,303 @@ display(spark_df.limit(5))
 rides_by_weather = spark_df.groupBy('temp_category').agg(count('ride_id').alias('ride_count'))
 
 display(rides_by_weather)
+
+# COMMAND ----------
+
+display(spark_df.select('main').distinct())
+sf=spark_df.filter(col('main').isNull())
+display(sf)
+
+# COMMAND ----------
+
+rides_by_weather = spark_df.groupBy('date', 'main').agg(count('ride_id').alias('ride_count'))
+display(rides_by_weather)
+
+# COMMAND ----------
+
+from pyspark.sql.functions import *
+
+# Define the weather conditions of interest
+good_weather_conditions = ['Clear', 'Clouds']
+bad_weather_conditions = ['Rain', 'Snow', 'Thunderstorm','Mist','Smoke','Drizzle','Haze','Fog']
+
+# Create new columns to identify good/bad weather days
+rides_by_weather = rides_by_weather.withColumn('good_weather',
+                                               when(rides_by_weather['main'].isin(good_weather_conditions), 1)
+                                               .otherwise(0))
+rides_by_weather = rides_by_weather.withColumn('bad_weather',
+                                               when(rides_by_weather['main'].isin(bad_weather_conditions), 1)
+                                               .otherwise(0))
+
+# Sum the ride counts for each weather condition and date
+good_weather_rides = rides_by_weather.filter(rides_by_weather['good_weather'] == 1)\
+                                      .groupBy('date')\
+                                      .agg(sum('ride_count').alias('good_weather_rides'))
+bad_weather_rides = rides_by_weather.filter(rides_by_weather['bad_weather'] == 1)\
+                                     .groupBy('date')\
+                                     .agg(sum('ride_count').alias('bad_weather_rides'))
+
+# Join the ride counts by weather condition and date
+rides_by_weather_trend = good_weather_rides.join(bad_weather_rides, 'date', 'outer')\
+                                           .orderBy('date')
+
+display(rides_by_weather_trend)
+
+
+# COMMAND ----------
+
+import matplotlib.pyplot as plt
+
+# Extract data from DataFrame
+dates = rides_by_weather_trend.select('date').collect()
+good_weather_rides = rides_by_weather_trend.select('good_weather_rides').collect()
+bad_weather_rides = rides_by_weather_trend.select('bad_weather_rides').collect()
+
+# Create a line chart with two lines
+fig, ax = plt.subplots()
+ax.plot(dates, good_weather_rides, label='Good Weather Rides')
+ax.plot(dates, bad_weather_rides, label='Bad Weather Rides')
+
+# Set axis labels and title
+ax.set_xlabel('Date')
+ax.set_ylabel('Number of Rides')
+ax.set_title('Ride Counts by Weather Condition and Date')
+
+# Add legend and display the chart
+ax.legend()
+plt.show()
+
+
+# COMMAND ----------
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Extract data from DataFrame
+dates = rides_by_weather_trend.select('date').collect()
+good_weather_rides = rides_by_weather_trend.select('good_weather_rides').collect()
+bad_weather_rides = rides_by_weather_trend.select('bad_weather_rides').collect()
+
+# Create a scatter plot
+fig, ax = plt.subplots()
+ax.scatter(dates, good_weather_rides, label='Good Weather Rides')
+ax.scatter(dates, bad_weather_rides, label='Bad Weather Rides')
+
+# Set axis labels and title
+ax.set_xlabel('Date')
+ax.set_ylabel('Number of Rides')
+ax.set_title('Ride Counts by Weather Condition and Date')
+
+# Add legend and display the chart
+ax.legend()
+plt.show()
+
+
+# COMMAND ----------
+
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Aggregate the ride counts by weather condition and date
+rides_by_weather = spark_df.groupBy('date', 'main').agg(count('ride_id').alias('ride_count'))
+
+# Convert the DataFrame to a Pandas DataFrame for plotting
+rides_by_weather_pd = rides_by_weather.toPandas()
+
+# Create a line chart of ride counts by weather condition over time
+plt.figure(figsize=(20, 12))
+for weather in rides_by_weather_pd['main'].unique():
+    rides_by_weather_pd[rides_by_weather_pd['main'] == weather].plot(x='date', y='ride_count', label=weather)
+plt.title('Ride Counts by Weather Condition over Time')
+plt.xlabel('Date')
+plt.ylabel('Ride Count')
+plt.legend()
+plt.show()
+
+
+# COMMAND ----------
+
+import pandas as pd
+import plotly.express as px
+
+# Aggregate the ride counts by weather condition and date
+rides_by_weather = spark_df.groupBy('date', 'main').agg(count('ride_id').alias('ride_count'))
+
+# Filter the data to include only the first 10 days
+start_date = rides_by_weather.select('date').orderBy('date').first()[0]
+end_date = pd.to_datetime(start_date) + pd.Timedelta(days=10)
+rides_by_weather = rides_by_weather.filter((rides_by_weather['date'] >= start_date) & (rides_by_weather['date'] < end_date))
+
+# Convert the DataFrame to a Pandas DataFrame for plotting
+rides_by_weather_pd = rides_by_weather.toPandas()
+
+# Create a line chart of ride counts by weather condition over time using Plotly
+fig = px.line(rides_by_weather_pd, x='date', y='ride_count', color='main',
+              title='Ride Counts by Weather Condition over Time')
+fig.show()
+
+
+# COMMAND ----------
+
+from pyspark.sql.functions import sum, when, count
+from pyspark.sql.window import Window
+from pyspark.sql.functions import lag
+
+# Calculate the total ride count for each day and weather condition
+rides_by_weather = spark_df.groupBy('date', 'main').agg(count('ride_id').alias('ride_count'))
+
+# Calculate the total ride count for each day
+total_rides_by_day = rides_by_weather.groupBy('date').agg(sum('ride_count').alias('total_rides'))
+
+# Calculate the percentage of rides for each weather condition for each day
+rides_by_weather_percent = rides_by_weather.join(total_rides_by_day, 'date')\
+                                           .withColumn('percent_rides', (rides_by_weather['ride_count'] / total_rides_by_day['total_rides']) * 100)
+
+# Calculate the change in percentage of rides for each weather condition compared to the previous day
+w = Window.partitionBy('main').orderBy('date')
+rides_by_weather_percent = rides_by_weather_percent.withColumn('prev_percent_rides', lag('percent_rides', 1).over(w))
+rides_by_weather_percent = rides_by_weather_percent.withColumn('percent_change', (rides_by_weather_percent['percent_rides'] - rides_by_weather_percent['prev_percent_rides']) / rides_by_weather_percent['prev_percent_rides'] * 100)
+
+# Display the results
+display(rides_by_weather_percent)
+
+
+# COMMAND ----------
+
+from pyspark.sql.functions import avg
+
+# Calculate the overall average percentage change of rides by weather condition
+avg_percent_change = rides_by_weather_percent.groupBy('main')\
+                                             .agg(avg('percent_change').alias('avg_percent_change'))
+
+# Display the results
+display(avg_percent_change)
+
+
+# COMMAND ----------
+
+from pyspark.sql.functions import lead, col
+
+# Calculate the percentage change for each day
+rides_by_weather_percent = rides_by_weather.join(total_rides_by_day, 'date')\
+                                           .withColumn('percent_rides', (rides_by_weather['ride_count'] / total_rides_by_day['total_rides']) * 100)
+
+# Calculate the weather condition for the previous day
+rides_by_weather_percent = rides_by_weather_percent.withColumn('prev_main', lead(col('main')).over(Window.orderBy('date')))
+
+# Filter the rows where the weather condition changes from one day to the next
+filtered_rides = rides_by_weather_percent.filter(col('prev_main') != col('main'))
+
+# Calculate the average percentage change for these filtered rows
+avg_percent_change = filtered_rides.agg({'percent_rides': 'avg'}).collect()[0][0]
+
+print('Average percentage change of rides when the weather changes:', avg_percent_change)
+
+
+# COMMAND ----------
+
+from pyspark.sql.functions import sum, when, count, lag
+from pyspark.sql.window import Window
+
+# Calculate the total ride count for each day and weather condition
+rides_by_weather = spark_df.groupBy('date', 'main').agg(count('ride_id').alias('ride_count'))
+
+# Calculate the total ride count for each day
+total_rides_by_day = rides_by_weather.groupBy('date').agg(sum('ride_count').alias('total_rides'))
+
+# Calculate the percentage of rides for each weather condition for each day
+rides_by_weather_percent = rides_by_weather.join(total_rides_by_day, 'date')\
+                                           .withColumn('percent_rides', (rides_by_weather['ride_count'] / total_rides_by_day['total_rides']) * 100)
+
+# Calculate the change in percentage of rides for each weather condition compared to the previous day
+w = Window.partitionBy('main').orderBy('date')
+rides_by_weather_percent = rides_by_weather_percent.withColumn('prev_percent_rides', lag('percent_rides', 1).over(w))
+rides_by_weather_percent = rides_by_weather_percent.withColumn('percent_change', (rides_by_weather_percent['percent_rides'] - rides_by_weather_percent['prev_percent_rides']) / rides_by_weather_percent['prev_percent_rides'] * 100)
+
+# Use a CTE to filter only the rows where the weather condition changed from one day to the next
+rides_by_weather_percent.createOrReplaceTempView('rides_by_weather_percent_table')
+rides_by_weather_percent_change = spark.sql('''
+WITH temp_table AS (
+    SELECT 
+        *,
+        LAG(main) OVER (ORDER BY date) AS prev_main
+    FROM rides_by_weather_percent_table
+)
+SELECT 
+    temp_table.date,
+    temp_table.main AS from_weather,
+    temp_table.prev_main AS to_weather,
+    AVG(temp_table.percent_change) AS avg_percent_change
+FROM 
+    temp_table
+WHERE 
+    temp_table.main != temp_table.prev_main
+GROUP BY 
+    temp_table.date, 
+    temp_table.main,
+    temp_table.prev_main
+ORDER BY 
+    temp_table.date, 
+    temp_table.main,
+    temp_table.prev_main
+''')
+
+# Display the results
+rides_by_weather_percent_change.show()
+
+
+# COMMAND ----------
+
+from pyspark.sql.functions import sum, when, count, lag
+from pyspark.sql.window import Window
+
+# Calculate the total ride count for each day and weather condition
+rides_by_weather = spark_df.groupBy('date', 'main').agg(count('ride_id').alias('ride_count'))
+
+# Calculate the total ride count for each day
+total_rides_by_day = rides_by_weather.groupBy('date').agg(sum('ride_count').alias('total_rides'))
+
+# Calculate the percentage of rides for each weather condition for each day
+rides_by_weather_percent = rides_by_weather.join(total_rides_by_day, 'date')\
+                                           .withColumn('percent_rides', (rides_by_weather['ride_count'] / total_rides_by_day['total_rides']) * 100)
+
+# Calculate the change in percentage of rides for each weather condition compared to the previous day
+w = Window.partitionBy('main').orderBy('date')
+rides_by_weather_percent = rides_by_weather_percent.withColumn('prev_percent_rides', lag('percent_rides', 1).over(w))
+rides_by_weather_percent = rides_by_weather_percent.withColumn('percent_change', (rides_by_weather_percent['percent_rides'] - rides_by_weather_percent['prev_percent_rides']) / rides_by_weather_percent['prev_percent_rides'] * 100)
+
+# Use a CTE to filter only the rows where the weather condition changed from one day to the next
+rides_by_weather_percent.createOrReplaceTempView('rides_by_weather_percent_table')
+rides_by_weather_percent_change = spark.sql('''
+WITH temp_table AS (
+    SELECT 
+        *,
+        LAG(main) OVER (ORDER BY date) AS prev_main
+    FROM rides_by_weather_percent_table
+)
+SELECT 
+    temp_table.main AS from_weather,
+    temp_table.prev_main AS to_weather,
+    AVG(temp_table.percent_change) AS avg_percent_change
+FROM 
+    temp_table
+WHERE 
+    temp_table.main != temp_table.prev_main
+GROUP BY 
+    temp_table.main,
+    temp_table.prev_main
+ORDER BY 
+    temp_table.main,
+    temp_table.prev_main
+''')
+
+# Display the results
+rides_by_weather_percent_change.show()
+
+
+# COMMAND ----------
+
+
 
 # COMMAND ----------
 
