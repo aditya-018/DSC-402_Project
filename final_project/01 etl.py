@@ -251,3 +251,26 @@ new_df = df.select(col("ride_id"), col("rideable_type"), col("started_at"),col("
 
 # Write the new DataFrame as a Delta table in a new path
 new_df.write.format("delta").mode("overwrite").save("dbfs:/FileStore/tables/G06/silver/nyc_bike_trip_history_selected")
+
+# COMMAND ----------
+
+# Gold Table
+
+from pyspark.sql.types import *
+from pyspark.sql.functions import *
+from pyspark.sql import functions as F
+
+gold_path = GROUP_DATA_PATH + "gold"
+model_information=gold_path+"/model_information"
+schema = StructType([
+    StructField("ds", StringType(), True),
+    StructField("y", DoubleType(), True),
+    StructField("yhat", DoubleType(), True),
+    StructField("tag", StringType(), True),
+    StructField("residual", DoubleType(), True),
+    StructField("mae", DoubleType(), True)
+])
+
+gold_df = spark.createDataFrame([], schema=schema)
+
+gold_df.write.format("delta").mode("overwrite").save(model_information)
