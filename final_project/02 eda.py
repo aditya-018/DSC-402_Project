@@ -290,7 +290,7 @@ fig.show()
 
 # COMMAND ----------
 
-# bar graph
+# bar graph for total trips by day
 import plotly.graph_objs as go
 
 fig = go.Figure(data=[go.Bar(x=daily_trips.toPandas()['start_date'], y=daily_trips.toPandas()['count'], 
@@ -387,11 +387,13 @@ daily_trips_df.head()
 
 # COMMAND ----------
 
+#Ride counts during Holidays
 fig = px.bar(daily_trips_df, x='is_holiday', y='count', title='Ride counts during holidays')
 fig.show()
 
 # COMMAND ----------
 
+#Line plot for ride counts during holidays
 fig = px.line(daily_trips_df, x='date', y='count', title='Ride counts during holidays', color='is_holiday')
 fig.show()
 
@@ -460,12 +462,14 @@ rides_by_weather_df = rides_by_weather.toPandas()
 
 # COMMAND ----------
 
+#Ride counts per day in the month of december
 import plotly.express as px
 fig = px.bar(rides_by_weather_df['ride_count'], rides_by_weather_df['date'])
 fig.show()
 
 # COMMAND ----------
 
+#Ride counts per day based on the average temperature.
 fig = go.Figure()
 fig.update_traces(marker_color='blue')
 fig.add_trace(go.Bar(x=rides_by_weather_df.date, y=rides_by_weather_df.avg_temp,name="Temp", yaxis="y1"))
@@ -539,6 +543,7 @@ rides_weather_df_1
 
 # COMMAND ----------
 
+#Taking main column as hue and creating a bar plot for the count.
 dec_rides_weather = rides_by_weather_percent.filter((F.col('date') >= '2021-12-01') & (F.col('date') <= '2021-12-31'))
 
 dec_rides_weather_df = dec_rides_weather.toPandas()
