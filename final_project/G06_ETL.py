@@ -3,8 +3,8 @@
 
 # COMMAND ----------
 
-display(dbutils.fs.ls("dbfs:/FileStore/tables/G06/bronze/"))
-# dbutils.fs.rm("dbfs:/FileStore/tables/G06/bronze/nyc_weather_history/",True)
+display(dbutils.fs.ls("dbfs:/FileStore/tables/G06"))
+# dbutils.fs.rm("dbfs:/FileStore/tables/G06/bronze/weather_history/",True)
 
 # COMMAND ----------
 
@@ -46,7 +46,7 @@ query = (
     .option("path", output_path)
     .option("checkpointLocation", output_path + "/checkpoint")
     .option("mode", "append")
-    # .option("zOrderByCol","started_at")
+    .option("zOrderByCol","started_at")
     .partitionBy("start_station_name")
     .trigger(availableNow=True)
     .start()
@@ -262,7 +262,24 @@ new_df.write.format("delta").mode("overwrite").save("dbfs:/FileStore/tables/G06/
 
 # COMMAND ----------
 
+from pyspark.sql.types import *
+from pyspark.sql.functions import *
+from pyspark.sql import functions as F
 
+gold_path = GROUP_DATA_PATH + "gold"
+model_information=gold_path+"/model_information"
+schema = StructType([
+    StructField("ds", StringType(), True),
+    StructField("y", DoubleType(), True),
+    StructField("yhat", DoubleType(), True),
+    StructField("tag", StringType(), True),
+    StructField("residual", DoubleType(), True),
+    StructField("mae", DoubleType(), True)
+])
+
+gold_df = spark.createDataFrame([], schema=schema)
+
+gold_df.write.format("delta").mode("overwrite").save(model_information)
 
 # COMMAND ----------
 
