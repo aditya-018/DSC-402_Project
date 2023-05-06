@@ -4,15 +4,15 @@ GROUP_DATA_PATH = "dbfs:/FileStore/tables/G06"
 
 # COMMAND ----------
 
-display(dbutils.fs.ls("dbfs:/FileStore/tables/G06/bronze/"))
+display(dbutils.fs.ls("dbfs:/FileStore/tables/G06/silver/"))
 
 # COMMAND ----------
 
-display(dbutils.fs.ls("dbfs:/FileStore/tables/G06/bronze/bike_trip_history/"))
+display(dbutils.fs.ls("dbfs:/FileStore/tables/G06/silver/nyc_bike_trip_history_selected/"))
 
 # COMMAND ----------
 
-df_1 = spark.read.format("delta").load("dbfs:/FileStore/tables/G06/bronze/bike_trip_history/")
+df_1 = spark.read.format("delta").load("dbfs:/FileStore/tables/G06/silver/nyc_bike_trip_history_selected/")
 
 # COMMAND ----------
 
@@ -20,11 +20,11 @@ display(df_1.limit(10))
 
 # COMMAND ----------
 
-display(dbutils.fs.ls("dbfs:/FileStore/tables/G06/bronze/weather_history/"))
+display(dbutils.fs.ls("dbfs:/FileStore/tables/G06/silver/nyc_weather_history_selected/"))
 
 # COMMAND ----------
 
-df_weather = spark.read.format("delta").load("dbfs:/FileStore/tables/G06/bronze/weather_history/")
+df_weather = spark.read.format("delta").load("dbfs:/FileStore/tables/G06/silver/nyc_weather_history_selected/")
 display(df_weather.limit(10))
 
 # COMMAND ----------
