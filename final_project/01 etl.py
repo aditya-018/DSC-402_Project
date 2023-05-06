@@ -70,6 +70,8 @@ df = df.withColumn("rounded_time", date_trunc("hour", "started_at")) \
 df = df.withColumn("year", year("date"))
 df = df.withColumn("month", month("date"))
 
+# Check for null vlaues in all columns
+
 for column in df.columns:
     mode_value = df.select(column).groupBy(column).count().orderBy(F.desc("count")).first()[0]
     df = df.withColumn(column, when(col(column).isNull(), mode_value).otherwise(col(column)))
@@ -89,11 +91,6 @@ df = df.dropDuplicates()
 # save DataFrame as Delta table
 df.write.format("delta").option("overwriteSchema", "true").mode("overwrite").save("dbfs:/FileStore/tables/G06/bronze/nyc_bike_trip_history")
 
-
-# COMMAND ----------
-
-sample=spark.read.format("delta").load("dbfs:/FileStore/tables/G06/bronze/nyc_bike_trip_history")
-display(sample)
 
 # COMMAND ----------
 
@@ -157,6 +154,8 @@ query.awaitTermination()
 
 # COMMAND ----------
 
+# readstream weather history
+
 df=spark.read.format("delta").load(output_path)
 display(df.count())
 df = df.withColumn("datetime", to_timestamp(from_unixtime(df["dt"])))
@@ -165,6 +164,9 @@ df = df.withColumn("time", split(df["datetime"].cast("string"), " ")[1])
 df = df.withColumn("year", year("date"))
 df = df.withColumn("month", month("date"))
 df=df.drop("datetime")
+
+# Check for null vlaues in all columns
+
 for column in df.columns:
     mode_value = df.select(column).groupBy(column).count().orderBy(F.desc("count")).first()[0]
     df = df.withColumn(column, when(col(column).isNull(), mode_value).otherwise(col(column)))
