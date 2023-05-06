@@ -281,7 +281,7 @@ import matplotlib.pyplot as plt
 # Hyperparameter tuning
 import itertools
 import mlflow
-ARTIFACT_PATH = "Test_model"
+ARTIFACT_PATH = GROUP_MODEL_NAME
 np.random.seed(12345)
 def extract_params(pr_model):
     return {attr: getattr(pr_model, attr) for attr in serialize.SIMPLE_ATTRIBUTES}
@@ -289,10 +289,7 @@ def extract_params(pr_model):
 param_grid = {  
     'changepoint_prior_scale': [0.001, 0.05],
     'seasonality_prior_scale': [1, 3],
-    'seasonality_mode': ['additive', 'multiplicative'],
-    'daily_seasonality': [True],
-    'yearly_seasonality' : [True],
-    'weekly_seasonality': [True]
+    'seasonality_mode': ['additive', 'multiplicative']
 }
 train_df = main_dataframe.copy()
 test_df = pandas_final_silverdf_upper.copy()
@@ -338,8 +335,192 @@ for params in all_params:
         print(f"Model artifact logged to: {model_uri}")
 
         # Save model performance metrics for this combination of hyper parameters
-        mapes.append((df_p['rmse'].values[0],model_uri))
+        mapes.append((df_p['mae'].values[0],model_uri))
 
+
+# COMMAND ----------
+
+train_df.shape
+
+# COMMAND ----------
+
+# Tuning results
+import pandas as pd
+tuning_results = pd.DataFrame(all_params)
+tuning_results['mape'] = list(zip(*mapes))[0]
+tuning_results['model']= list(zip(*mapes))[1]
+print(tuning_results.head())
+best_params = dict(tuning_results.iloc[tuning_results[['mape']].idxmin().values[0]])
+best_params
+
+# COMMAND ----------
+
+tuning_results
+
+# COMMAND ----------
+
+best_params = {k: int(v) if isinstance(v, np.int64) else v for k, v in best_params.items()}
+print(json.dumps(best_params, indent=2))
+
+# COMMAND ----------
+
+best_params = {k: int(v) if isinstance(v, np.int64) else str(v) if isinstance(v, np.bool_) else v for k, v in best_params.items()}
+print(json.dumps(best_params, indent=2))
+
+# COMMAND ----------
+
+loaded_model = mlflow.prophet.load_model(best_params['model'])
+# Generate predictions for the test data
+future = pd.DataFrame({
+    'ds': test_df['ds'],
+    'temp': test_df['temp'],
+    'wind_speed': test_df['wind_speed'],
+    'humidity': test_df['humidity'],
+    'hour': test_df['hour']
+
+})
+
+forecast = loaded_model.predict(future)
+#forecast = loaded_model.predict(loaded_model.make_future_dataframe(36, freq="m"))
+
+print(f"forecast:\n${forecast.head()}")
+
+# COMMAND ----------
+
+prophet_plot2 = loaded_model.plot_components(forecast)
+
+# COMMAND ----------
+
+results=forecast[['ds','yhat']].join(test_df, lsuffix='_caller')
+results['residual'] = results['yhat'] - results['y']
+
+# COMMAND ----------
+
+results
+
+# COMMAND ----------
+
+#plot the residuals
+import plotly.express as px
+fig = px.scatter(
+    results, x='yhat', y='residual',
+    marginal_y='violin',
+    trendline='ols',
+)
+fig.show()
+
+# COMMAND ----------
+
+model_details = mlflow.register_model(model_uri=best_params['model'], name=ARTIFACT_PATH)
+
+# COMMAND ----------
+
+from mlflow.tracking.client import MlflowClient
+client = MlflowClient()
+
+# COMMAND ----------
+
+try:
+    model_information = spark.read.format("delta").load(GROUP_DATA_PATH + "gold" + "/model_information")
+except:
+    model_information = None
+try:
+    #retrain_error = model_information.filter(col("model_type") == "staging").select("error_mae").head(1)[0][0]
+    retrain_error = model_information.filter(col("model_type") == "Staging").select("error_mae").collect()[0][0]
+
+    #retrain_error = retrain_error[0][0]
+except:
+    retrain_error = 1234
+
+current_ver = None  
+
+# prod_model_str = dbutils.widgets.get('Promote Model')
+prod_model_str='no'
+Production = True if prod_model_str.lower() == 'yes' else False
+
+if Production:
+    current_ver = client.get_latest_versions(ARTIFACT_PATH, stages = ["Production"])
+    stage = "Production"
+
+elif best_params['mape'] < retrain_error:
+    current_ver = client.get_latest_versions(ARTIFACT_PATH, stages = ["Staging"])
+    stage = "Staging"
+
+else:
+    stage = "Archived"
+
+if current_ver:
+    client.transition_model_version_stage(
+        name = GROUP_MODEL_NAME,
+        version = current_ver[0].version,
+        stage = "Archived",
+        )
+
+client.transition_model_version_stage(
+  name=model_details.name,
+  version=model_details.version,
+  stage=stage,
+)
+
+model_version_details = client.get_model_version(
+  name=model_details.name,
+  version=model_details.version,
+)
+print("The current model stage is: '{stage}'".format(stage=model_version_details.current_stage))
+
+
+
+# COMMAND ----------
+
+results
+
+# COMMAND ----------
+
+main_df = None
+pred_df = pd.DataFrame(columns=['ds', 'y', 'yhat', 'model_res'])
+pred_df['model_type'] = []
+pred_df['error_mae'] = []
+pred_df['num_bikes_available'] = []
+
+try:
+    extract_stage_data = model_info.filter(col("mode_type") == 'Staging')
+    extract_production_data = model_info.filter(col("model_type") == 'Production')
+except:
+    extract_stage_data = None
+    extract_production_data = None
+
+if Production:
+    df = results.copy()
+    df['model_type'] = "Production"
+    df["error_mae"] = best_params['mape']
+    pred_df[['ds', 'y', 'yhat', 'model_res', 'model_type', 'error_mae', 'num_bikes_available']] =  df[['ds_caller', 'y', 'yhat', 'residual', 'model_type', 'error_mae', 'num_bikes_available']]
+    if extract_stage_data:
+        main_df = extract_stage_data.union(spark.createDataFrame(pred_df))
+    else:
+        main_df = spark.createDataFrame(pred_df)
+
+elif best_params['mape'] < retrain_error:
+    df = results.copy()
+    df['model_type'] = "Staging"
+    df["error_mae"] = best_params['mape']
+    pred_df[['ds', 'y', 'yhat', 'model_res', 'model_type', 'error_mae', 'num_bikes_available']] =  df[['ds_caller', 'y', 'yhat', 'residual', 'model_type', 'error_mae', 'num_bikes_available']]
+    if extract_production_data:
+        main_df = extract_production_data.union(spark.createDataFrame(pred_df))
+    else:
+        main_df = spark.createDataFrame(pred_df)
+else:
+    pass
+
+
+# COMMAND ----------
+
+main_df = main_df.withColumn("yhat", round(main_df["yhat"]))
+display(main_df)
+
+# COMMAND ----------
+
+if main_df:
+    main_df.write.format("delta").option("path", GROUP_DATA_PATH + "gold" + "/model_information").mode("overwrite").save()
 
 # COMMAND ----------
 
