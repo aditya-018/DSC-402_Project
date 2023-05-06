@@ -52,9 +52,10 @@ display(weather.limit(5))
 
 from pyspark.sql.functions import year, month, count
 
-delta_path = "dbfs:/FileStore/tables/G06/silver/nyc_bike_trip_history_selected"
+delta_path = "dbfs:/FileStore/tables/G06/bronze/nyc_bike_trip_history/"
 
 df = spark.read.format("delta").load(delta_path)
+display(df)
 # display(df.orderBy("started_at").tail(5))
 df = df.withColumn("started_at", df["started_at"].cast("date"))
 
