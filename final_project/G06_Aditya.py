@@ -211,4 +211,73 @@ dec_rides_weather_df.shape
 
 # COMMAND ----------
 
+from pyspark.sql import SparkSession
+dec_rides_weather_df['ride_count'] = dec_rides_weather_df['ride_id'].value_counts()
+spark = SparkSession.builder.appName("dec_spark_df").getOrCreate()
+dec_spark_df = spark.createDataFrame(dec_rides_weather_df)
+display(dec_spark_df.limit(10))
+
+# COMMAND ----------
+
+dec_rides_weather_df.head()
+
+# COMMAND ----------
+
+from pyspark.sql.functions import avg
+rides_by_weather = dec_spark_df.groupBy('date','main','time')\
+    .agg(avg('temp').alias('avg_temp'), count('ride_id').alias('ride_count'), avg('clouds').alias('avg_clouds'))
+display(rides_by_weather.limit(10))
+rides_by_weather_df = rides_by_weather.toPandas()
+
+# COMMAND ----------
+
+# Ride Counts per day in the month of December
+import plotly.express as px
+fig = px.bar(rides_by_weather_df['ride_count'], rides_by_weather_df['date'])
+fig.show()
+
+# COMMAND ----------
+
+import plotly.graph_objects as go
+
+fig = go.Figure()
+fig.update_traces(marker_color='blue')
+fig.add_trace(go.Bar(x=rides_by_weather_df.date, y=rides_by_weather_df.avg_temp,name="Temp", yaxis="y1"))
+
+fig.update_layout(
+   xaxis=dict(domain=[0.15, 0.15]),
+
+yaxis=dict(
+   title="Avg. Temp",
+   overlaying="y",
+   side="right",
+   position=1)
+)
+
+fig.update_layout(title_text="Daily Trips Vs. Avg. Temperature",
+width=1016, height=600)
+fig.show()
+
+# COMMAND ----------
+
+fig = go.Figure()
+fig.update_traces(marker_color='red')
+fig.add_trace(go.Bar(x=rides_by_weather_df.date, y=rides_by_weather_df.avg_clouds,name="Clouds", yaxis="y"))
+
+fig.update_layout(
+   xaxis=dict(domain=[0.15, 0.15]),
+
+yaxis=dict(
+   title="Avg. Clouds",
+   overlaying="y",
+   side="right",
+   position=1)
+)
+
+fig.update_layout(title_text="Daily Trips Vs. Avg. Clouds",
+width=1016, height=600)
+fig.show()
+
+# COMMAND ----------
+
 
