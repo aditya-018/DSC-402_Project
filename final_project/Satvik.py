@@ -260,7 +260,7 @@ print(f"forecast:\n${forecast.tail(40)}")
 
 # COMMAND ----------
 
-prophet_plot = loaded_model.plot(forecast)
+prophet_plot = loaded_model.plot(forecast) 
 
 # COMMAND ----------
 
