@@ -277,3 +277,10 @@ schema = StructType([
 gold_df = spark.createDataFrame([], schema=schema)
 
 gold_df.write.format("delta").mode("overwrite").save(model_information)
+
+# COMMAND ----------
+
+import json
+
+# Return Success
+dbutils.notebook.exit(json.dumps({"exit_code": "OK"}))
