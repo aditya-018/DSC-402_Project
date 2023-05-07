@@ -13,40 +13,6 @@
 
 # COMMAND ----------
 
-from pyspark.sql.functions import year, month, count, to_timestamp,from_unixtime,split
-
-sample=spark.read.format("delta").load("dbfs:/FileStore/tables/bronze_station_status.delta")
-sample = sample.withColumn("datetime", to_timestamp(from_unixtime(sample["last_reported"])))
-
-sample = sample.withColumn("date", sample["datetime"].cast("date"))
-sample = sample.withColumn("time", split(sample["datetime"].cast("string"), " ")[1])
-
-display(sample.filter(sample["date"]=='2023-04-19'))
-
-# COMMAND ----------
-
-sam=spark.read.format("csv").load("dbfs:/FileStore/tables/raw/weather/")
-display(sam)
-
-# COMMAND ----------
-
-display(dbutils.fs.ls("dbfs:/FileStore/tables/G06/silver/"))
-
-# COMMAND ----------
-
-sample=sample.sort(sample["date"].asc())
-
-# COMMAND ----------
-
-display(sample.limit(5))
-
-# COMMAND ----------
-
-weather_live=spark.read.format("delta").load("dbfs:/FileStore/tables/bronze_nyc_weather.delta")
-display(weather_live.sort(weather_live["time"].asc()))
-
-# COMMAND ----------
-
 rides_df=spark.read.format("delta").load("dbfs:/FileStore/tables/G06/silver/nyc_bike_trip_history_selected/")
 display(rides_df.sort(rides_df['started_at']))
 
@@ -300,21 +266,6 @@ fig.show()
 
 # COMMAND ----------
 
-import pandas as pd
-from pyspark.sql.functions import to_date
-start_date = "2021-11-01"
-end_date = "2023-05-06"
-date_range = pd.date_range(start=start_date, end=end_date, freq='D').strftime('%Y-%m-%d').tolist()
-df = df.withColumn("start_date", date_format("started_at", "yyyy-MM-dd").cast("date"))
-start_date_list = [str(row.start_date) for row in df.select("start_date").collect()]
-uncommon_elements = list(set(date_range).symmetric_difference(set(start_date_list)))
-uncommon_elements = sorted(uncommon_elements, key=lambda d: datetime.datetime.strptime(d, '%Y-%m-%d'))
-print(f"Total {len(uncommon_elements)} days with zero rides")
-for i in uncommon_elements:
-    print(i)
-
-# COMMAND ----------
-
 from pyspark.sql.functions import date_format, col, udf
 from pyspark.sql.types import BooleanType
 import datetime
@@ -383,7 +334,6 @@ print("Percentage change in the average number of trips per day due to holidays:
 # COMMAND ----------
 
 daily_trips_df = daily_trips.toPandas()
-daily_trips_df.head()
 
 # COMMAND ----------
 
@@ -421,7 +371,6 @@ import pandas as pd
 delta_path = "dbfs:/FileStore/tables/G06/silver/nyc_bike_trip_history_selected/"
 
 rides_df = spark.read.format("delta").load(delta_path)
-display(rides_df.limit(5))
 rides_df_pandas=rides_df.toPandas()
 
 # COMMAND ----------
@@ -429,7 +378,6 @@ rides_df_pandas=rides_df.toPandas()
 delta_path1 = "dbfs:/FileStore/tables/G06/silver/nyc_weather_history_selected/"
 
 weather_df = spark.read.format("delta").load(delta_path1)
-display(weather_df.limit(5))
 weather_df_pandas=weather_df.toPandas()
 
 # COMMAND ----------
@@ -577,10 +525,6 @@ spark_df = spark_df.withColumn('feels_like', round(col('feels_like'), 0))
 rides_by_weather = spark_df.groupBy('feels_like').agg(count('ride_id').alias('ride_count'))
 
 display(rides_by_weather)
-
-# COMMAND ----------
-
-
 
 # COMMAND ----------
 
