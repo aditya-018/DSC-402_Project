@@ -14,6 +14,7 @@ import datetime
 import plotly.express as px
 from mlflow.tracking.client import MlflowClient
 
+
 # COMMAND ----------
 
 # Question 1: Current timestamp when the notebook is run (now)

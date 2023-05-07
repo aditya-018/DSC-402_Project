@@ -18,7 +18,6 @@ weather_df=weather_df.toPandas()
 merged_df = pd.merge(weather_df,ride_df, how='left', on=['date', 'time'])
 
 spark_df = spark.createDataFrame(merged_df)
-#display(spark_df.count())
 
 spark_df=spark_df.drop('dt','started_at','ended_at','start_lat','end_lat','start_lng','end_lng','year','month')
 display(spark_df)
