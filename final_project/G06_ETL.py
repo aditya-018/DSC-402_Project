@@ -1,4 +1,8 @@
 # Databricks notebook source
+# MAGIC %run "../final_project/includes/includes/"
+
+# COMMAND ----------
+
 from pyspark.sql.types import StructType, StructField, StringType
 weather_schema=StructType([
     StructField("dt", StringType(), True),
@@ -106,6 +110,54 @@ uncommon_elements = sorted(uncommon_elements, key=lambda d: datetime.datetime.st
 print(f"Total {len(uncommon_elements)} days with zero rides")
 for i in uncommon_elements:
     print(i)
+
+# COMMAND ----------
+
+# Forecast the available bikes for the next 4 hours.
+from pyspark.sql.types import *
+from pyspark.sql.functions import *
+from pyspark.sql import functions as F
+
+
+x = spark.read.format("delta").load(GROUP_DATA_PATH + "gold"+"/model_information")
+x = x.withColumn("available_bikes", col("num_bikes_available") + col("yhat"))
+display(x.select("available_bikes"))
+display(x.printSchema())
+
+# COMMAND ----------
+
+import plotly.graph_objects as go
+import pandas as pd
+
+# Convert Spark DataFrame to Pandas DataFrame
+pdf = x.select("ds", "available_bikes").toPandas()
+
+# Set x-axis as datetime and y-axis as available_bikes
+pdf.set_index("ds", inplace=True)
+pdf.sort_index(inplace=True)
+
+# Create plotly figure
+fig = go.Figure()
+
+# Add trace for available bikes
+fig.add_trace(go.Scatter(x=pdf.index, y=pdf["available_bikes"], name='Available Bikes'))
+
+# Add horizontal line for capacity
+fig.add_shape(type='line', x0=pdf.index[0], x1=pdf.index[-1], y0=113, y1=113,
+              line=dict(color='red', width=2, dash='dash'))
+
+# Add text annotation for capacity
+fig.add_annotation(x=pdf.index[0], y=113,
+                   text='Capacity', showarrow=False,
+                   xanchor='left', yanchor='bottom', font=dict(color='red'))
+
+# Update layout
+fig.update_layout(title='Number of Available Bikes over Time',
+                  xaxis_title='Time',
+                  yaxis_title='Available Bikes')
+
+# Show plot
+fig.show()
 
 # COMMAND ----------
 
