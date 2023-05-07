@@ -235,18 +235,102 @@ display(station.filter(station["name"]=="Broadway & E 14 St"))
 
 # COMMAND ----------
 
-status=spark.read.format("delta").load("dbfs:/FileStore/tables/bronze_station_status.delta")
-display(status.filter(status["station_id"]=='66db6387-0aca-11e7-82f6-3863bb44ef7c'))
+
 
 # COMMAND ----------
 
-from pyspark.sql.functions import year, month, count, to_timestamp,from_unixtime,split
-
+from pyspark.sql.functions import *
+from pyspark.sql import functions as F
 sample=spark.read.format("delta").load("dbfs:/FileStore/tables/bronze_station_status.delta")
+sample=sample.filter(sample["station_id"]=='66db6387-0aca-11e7-82f6-3863bb44ef7c')
 sample = sample.withColumn("datetime", to_timestamp(from_unixtime(sample["last_reported"])))
-
 sample = sample.withColumn("date", sample["datetime"].cast("date"))
 sample = sample.withColumn("time", split(sample["datetime"].cast("string"), " ")[1])
 sample=sample.drop('datetime')
-display(sample.filter(sample["station_id"]=='66db6387-0aca-11e7-82f6-3863bb44ef7c'))
+sample=sample.select(col("num_ebikes_available"), col("num_docks_available"), col("num_docks_disabled"),col("num_bikes_disabled"),col("num_bikes_available"),col("date"),col("time"))
+display(sample)
+sample = sample.withColumn("rounded_time", date_trunc("hour", "time")) \
+       .withColumn("hour", lpad(hour("rounded_time").cast("string"), 2, "0")).drop("time")\
+       .withColumn("time", concat("hour", lit(":00:00"))) \
+       .drop("rounded_time", "hour")
+num_cols = [c for c in sample.columns if c not in ['date', 'time']]
+
+# Compute the hourly average of each numeric column
+data = sample.groupBy('date','time').agg(*[round(avg(col(c))).alias(c) for c in num_cols])
+
+# Show the result
+display(data)
+
+
+
+# COMMAND ----------
+
+
+for column in data.columns:
+    mode_value = data.select(column).groupBy(column).count().orderBy(F.desc("count")).first()[0]
+    data = data.withColumn(column, when(col(column).isNull(), mode_value).otherwise(col(column)))
+
+for column in data.columns:
+    null_count = data.filter(col(column).isNull()).count()
+    print(f"Column '{column}' has {null_count} null values.")
+
+counts = data.groupBy(data.columns).count()
+
+# filter only the rows with count > 1
+duplicates = counts.filter("count > 1")
+
+# show the resulting duplicates
+duplicates.show()
+data = data.dropDuplicates()
+
+# COMMAND ----------
+
+df=spark.read.format("delta").load("dbfs:/FileStore/tables/bronze_nyc_weather.delta")
+df = df.withColumn("datetime", to_timestamp(from_unixtime(df["dt"])))
+df = df.withColumn("date", df["datetime"].cast("date"))
+df = df.withColumn("time", split(df["datetime"].cast("string"), " ")[1])
+df=df.drop("datetime")
+display(df)
+
+# COMMAND ----------
+
+df = df.filter(col('date') > '2023-04-18')
+df=df.toPandas()
+data=data.toPandas()
+merged_df = pd.merge(df,data, how='left', on=['date', 'time'])
+spark_df = spark.createDataFrame(merged_df)
+display(spark_df)
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+
+display(spark_df)
+
+# COMMAND ----------
+
+for column in spark_df.columns:
+    null_count = spark_df.filter(col(column).isNull()).count()
+    print(f"Column '{column}' has {null_count} null values.")
+
+
+for column in spark_df.columns:
+    mode_value = spark_df.select(column).groupBy(column).count().orderBy(F.desc("count")).first()[0]
+    spark_df = spark_df.withColumn(column, when(col(column).isNull(), mode_value).otherwise(col(column)))
+
+
+
+counts = spark_df.groupBy(spark_df.columns).count()
+
+# filter only the rows with count > 1
+duplicates = counts.filter("count > 1")
+
+# show the resulting duplicates
+duplicates.show()
+dat = spark_df.dropDuplicates()
+
+# COMMAND ----------
+
 

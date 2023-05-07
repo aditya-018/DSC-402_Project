@@ -34,7 +34,7 @@ display(sample.limit(5))
 # COMMAND ----------
 
 station_info=spark.read.format("delta").load("dbfs:/FileStore/tables/bronze_station_info.delta")
-display(station_info.limit(5))
+display(station_info.filter(station_info["name"]=="Broadway & E 14 St"))
 
 # COMMAND ----------
 
@@ -785,7 +785,8 @@ rides_by_weather_percent_change.show()
 
 # COMMAND ----------
 
-
+station_info=spark.read.format("delta").load("dbfs:/FileStore/tables/bronze_station_info.delta")
+station_info=station_info.filter(station_info["station_id"]=="66db6387-0aca-11e7-82f6-3863bb44ef7c")
 
 # COMMAND ----------
 
