@@ -265,12 +265,13 @@ from pyspark.sql import functions as F
 gold_path = GROUP_DATA_PATH + "gold"
 model_information=gold_path+"/model_information"
 schema = StructType([
-    StructField("ds", StringType(), True),
+    StructField("ds", TimestampType(), True),
     StructField("y", DoubleType(), True),
     StructField("yhat", DoubleType(), True),
-    StructField("tag", StringType(), True),
-    StructField("residual", DoubleType(), True),
-    StructField("mae", DoubleType(), True)
+    StructField("model_type", StringType(), True),
+    StructField("model_res", DoubleType(), True),
+    StructField("error_mae", DoubleType(), True),
+    StructField("num_bikes_available", DoubleType(), True)
 ])
 
 gold_df = spark.createDataFrame([], schema=schema)
