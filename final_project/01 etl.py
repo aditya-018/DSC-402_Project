@@ -184,7 +184,7 @@ duplicates = counts.filter("count > 1")
 duplicates.show()
 df = df.dropDuplicates()
 # save DataFrame as Delta table
-df.write.format("delta").option("overwriteSchema", "true").mode("overwrite").save(output_path)
+df.write.format("delta").option("overwriteSchema", "true").mode("overwrite").save("dbfs:/FileStore/tables/G06/bronze/nyc_weather_history")
 
 # COMMAND ----------
 
@@ -211,7 +211,7 @@ ml_df_g06 = ml_df_g06.withColumn("month", month("date"))
 
 # Write filtered DataFrame to a Delta table partitioned by start_station_name and end_station_name
 delta_table_name = 'ml_historic_bike_trip_g06'
-ml_df_g06.write.format("delta").mode("overwrite").option("overwriteSchema", "true").save(GROUP_DATA_PATH + delta_table_name)
+ml_df_g06.write.format("delta").mode("overwrite").option("overwriteSchema", "true").save("dbfs:/FileStore/tables/G06/bronze/ml_historic_bike_trip_g06")
 
 # COMMAND ----------
 
