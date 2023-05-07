@@ -73,6 +73,7 @@ GROUP_DB_NAME = f"{GROUP_NAME}_db"
 
 GROUP_DATA_PATH = f"dbfs:/FileStore/tables/{GROUP_NAME}/"
 
+#promote_model = True if str(dbutils.widgets.get('Promote Model')).lower() == 'yes' else False
 
 
 # Setup the hive meta store if it does not exist and select database as the focus of future sql commands in this notebook
